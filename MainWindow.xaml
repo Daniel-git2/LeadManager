@@ -3,292 +3,98 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:models="clr-namespace:LeadManager.Models"
         xmlns:vm="clr-namespace:LeadManager.ViewModels"
+        xmlns:views="clr-namespace:LeadManager.Views"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
-        Title="Lead Manager" Height="860" Width="1440" MinWidth="1000" MinHeight="600"
-        WindowStartupLocation="CenterScreen" FontFamily="Segoe UI" FontSize="13">
+        Title="Lead Manager" Height="600" Width="1000" MinWidth="900" MinHeight="520"
+        WindowStartupLocation="CenterScreen" FontFamily="Segoe UI" FontSize="13"
+        Background="{StaticResource PageBrush}" Foreground="{StaticResource TextPrimaryBrush}"
+        AllowDrop="True" DragOver="Window_DragOver" Drop="Window_Drop">
     <Window.InputBindings>
-        <KeyBinding Key="N" Modifiers="Control" Command="{Binding AddLeadCommand}" />
+        <KeyBinding Key="N" Modifiers="Control" Command="{Binding NewLeadCommand}" />
+        <KeyBinding Key="O" Modifiers="Control" Command="{Binding ImportCsvCommand}" />
+        <KeyBinding Key="D1" Modifiers="Control" Command="{Binding GoToDashboardCommand}" />
+        <KeyBinding Key="D2" Modifiers="Control" Command="{Binding GoToLeadsCommand}" />
     </Window.InputBindings>
     <Window.CommandBindings>
         <CommandBinding Command="Find" Executed="Find_Executed" />
     </Window.CommandBindings>
 
-    <DockPanel>
-        <!-- Toolbar -->
-        <Border DockPanel.Dock="Top" Padding="14,10" Background="White" BorderBrush="{StaticResource Divider}" BorderThickness="0,0,0,1">
-            <DockPanel>
-                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                    <Button Content="New lead" Command="{Binding AddLeadCommand}" ToolTip="Ctrl+N" />
-                    <Button Content="Delete" Command="{Binding DeleteLeadCommand}" Margin="6,0,0,0" />
-                    <Border Width="1" Margin="12,2" Background="{StaticResource Divider}" />
-                    <Button Content="Import CSV…" Command="{Binding ImportCsvCommand}"
-                            ToolTip="Add leads from a CSV. Leads already here are matched by Lead ID or email, and your status, dates and notes are never overwritten." />
-                    <Button Content="Export CSV…" Command="{Binding ExportCsvCommand}" Margin="6,0,0,0"
-                            ToolTip="Save the leads currently shown in the list to a CSV file" />
-                </StackPanel>
-
-                <StackPanel Orientation="Horizontal">
-                    <Grid Width="320">
-                        <TextBox x:Name="SearchBox" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged, Delay=150}" />
-                        <TextBlock Text="Search name, practice, email, notes…   Ctrl+F" IsHitTestVisible="False"
-                                   Foreground="{StaticResource PlaceholderText}" Margin="7,0,0,0" VerticalAlignment="Center">
-                            <TextBlock.Style>
-                                <Style TargetType="TextBlock">
-                                    <Setter Property="Visibility" Value="Collapsed" />
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding Text, ElementName=SearchBox}" Value="">
-                                            <Setter Property="Visibility" Value="Visible" />
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </TextBlock.Style>
-                        </TextBlock>
-                    </Grid>
-                    <ComboBox ItemsSource="{Binding StatusFilterOptions}" SelectedItem="{Binding StatusFilter}" Width="150" Margin="8,0,0,0" />
-                    <ComboBox ItemsSource="{Binding PriorityFilterOptions}" SelectedItem="{Binding PriorityFilter}" Width="125" Margin="8,0,0,0" />
-                    <ComboBox ItemsSource="{Binding ContactFilterOptions}" SelectedItem="{Binding ContactFilter}" Width="145" Margin="8,0,0,0" />
-                </StackPanel>
-            </DockPanel>
-        </Border>
-
-        <!-- Status bar -->
-        <Border DockPanel.Dock="Bottom" Padding="14,6" Background="{StaticResource PanelBackground}" BorderBrush="{StaticResource Divider}" BorderThickness="0,1,0,0">
-            <DockPanel>
-                <TextBlock DockPanel.Dock="Right" Foreground="{StaticResource MutedText}" ToolTip="Show the database file in File Explorer">
-                    <Hyperlink Command="{Binding OpenDataFolderCommand}"><Run Text="{Binding DatabasePath, Mode=OneWay}" /></Hyperlink>
-                </TextBlock>
-                <TextBlock Text="{Binding Summary}" />
-                <TextBlock Text="{Binding StatusMessage}" Margin="24,0" Foreground="{StaticResource MutedText}" TextTrimming="CharacterEllipsis" />
-            </DockPanel>
-        </Border>
-
-        <Grid>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" MinWidth="420" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="470" MinWidth="340" />
-            </Grid.ColumnDefinitions>
-
-            <!-- Lead list -->
-            <DataGrid x:Name="LeadsGrid" ItemsSource="{Binding LeadsView}" SelectedItem="{Binding SelectedLead}"
-                      IsSynchronizedWithCurrentItem="False" IsReadOnly="True" AutoGenerateColumns="False"
-                      SelectionMode="Single" SelectionUnit="FullRow" HeadersVisibility="Column"
-                      GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#ECEFF3"
-                      BorderThickness="0" Background="White" RowHeight="32" ColumnHeaderHeight="32">
-                <DataGrid.Resources>
-                    <Style x:Key="CellText" TargetType="TextBlock" BasedOn="{x:Static DataGridTextColumn.DefaultElementStyle}">
-                        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
-                    </Style>
-                </DataGrid.Resources>
-                <DataGrid.RowStyle>
-                    <Style TargetType="DataGridRow">
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding IsFollowUpDue}" Value="True">
-                                <Setter Property="Background" Value="{StaticResource FollowUpDueRow}" />
-                                <Setter Property="ToolTip" Value="Follow-up is due" />
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </DataGrid.RowStyle>
-                <DataGrid.CellStyle>
-                    <Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
-                        <Setter Property="BorderThickness" Value="0" />
-                        <Setter Property="Template">
-                            <Setter.Value>
-                                <ControlTemplate TargetType="DataGridCell">
-                                    <Border Background="{TemplateBinding Background}" Padding="8,0">
-                                        <ContentPresenter VerticalAlignment="Center" />
-                                    </Border>
-                                </ControlTemplate>
-                            </Setter.Value>
-                        </Setter>
-                    </Style>
-                </DataGrid.CellStyle>
-                <DataGrid.ColumnHeaderStyle>
-                    <Style TargetType="DataGridColumnHeader">
-                        <Setter Property="Padding" Value="8,0" />
-                        <Setter Property="FontWeight" Value="SemiBold" />
-                    </Style>
-                </DataGrid.ColumnHeaderStyle>
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="ID" Binding="{Binding LeadCode}" Width="72" ElementStyle="{StaticResource CellText}" />
-                    <DataGridTextColumn Header="Priority" Binding="{Binding FitPriority}" SortMemberPath="PriorityRank" Width="72" ElementStyle="{StaticResource CellText}" />
-                    <DataGridTextColumn Header="Name" Binding="{Binding ContactName}" Width="1.2*" ElementStyle="{StaticResource CellText}" />
-                    <DataGridTextColumn Header="Practice" Binding="{Binding Practice}" Width="1.4*" ElementStyle="{StaticResource CellText}" />
-                    <DataGridTextColumn Header="Email" Binding="{Binding Email}" Width="1.5*" ElementStyle="{StaticResource CellText}" />
-                    <DataGridTextColumn Header="Location" Binding="{Binding Location}" Width="*" ElementStyle="{StaticResource CellText}" />
-                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="110" ElementStyle="{StaticResource CellText}" />
-                    <DataGridTextColumn Header="Last contacted" Binding="{Binding ContactedOn, StringFormat=yyyy-MM-dd}" Width="105" ElementStyle="{StaticResource CellText}" />
-                    <DataGridTextColumn Header="Follow up" Binding="{Binding FollowUpOn, StringFormat=yyyy-MM-dd}" Width="90" ElementStyle="{StaticResource CellText}" />
-                </DataGrid.Columns>
-            </DataGrid>
-
-            <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Center" VerticalAlignment="Stretch"
-                          Background="{StaticResource Divider}" ResizeBehavior="PreviousAndNext" />
-
-            <!-- Details -->
-            <Grid Grid.Column="2" Background="{StaticResource PanelBackground}">
-                <TextBlock Text="Select a lead to see and edit its details." Foreground="{StaticResource MutedText}"
-                           HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <TextBlock.Style>
-                        <Style TargetType="TextBlock">
-                            <Setter Property="Visibility" Value="Collapsed" />
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding SelectedLead}" Value="{x:Null}">
-                                    <Setter Property="Visibility" Value="Visible" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </TextBlock.Style>
-                </TextBlock>
-
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <ScrollViewer.Style>
-                        <Style TargetType="ScrollViewer">
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding SelectedLead}" Value="{x:Null}">
-                                    <Setter Property="Visibility" Value="Collapsed" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </ScrollViewer.Style>
-
-                    <StackPanel Margin="20,16,20,28">
-                        <TextBlock Text="{Binding SelectedLead.DisplayName}" FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap" />
-                        <TextBlock Text="{Binding SelectedLead.Practice}" Foreground="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,2,0,0" />
-                        <TextBlock Text="{Binding SelectedLead.Email}" Foreground="{StaticResource MutedText}" TextWrapping="Wrap" />
-
-                        <WrapPanel Margin="0,12,0,0">
-                            <Button Content="Email…" Command="{Binding SendEmailCommand}" ToolTip="Start a new email in your mail app" Margin="0,0,6,0" />
-                            <Button Content="Copy email" Command="{Binding CopyEmailCommand}" Margin="0,0,6,0" />
-                            <Button Content="Open website" Command="{Binding OpenWebsiteCommand}" />
-                        </WrapPanel>
-
-                        <!-- Outreach tracking -->
-                        <TextBlock Text="Outreach" Style="{StaticResource SectionHeader}" />
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition />
-                                <ColumnDefinition Width="14" />
-                                <ColumnDefinition />
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                            </Grid.RowDefinitions>
-
-                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Status" Style="{StaticResource FieldLabel}" />
-                            <ComboBox Grid.Row="1" Grid.Column="0" IsEditable="True" ItemsSource="{x:Static models:LeadOptions.Statuses}"
-                                      Text="{Binding SelectedLead.Status, UpdateSourceTrigger=PropertyChanged}" />
-
-                            <TextBlock Grid.Row="0" Grid.Column="2" Text="Interest" Style="{StaticResource FieldLabel}" />
-                            <ComboBox Grid.Row="1" Grid.Column="2" IsEditable="True" ItemsSource="{x:Static models:LeadOptions.InterestLevels}"
-                                      Text="{Binding SelectedLead.Interest, UpdateSourceTrigger=PropertyChanged}" />
-
-                            <CheckBox Grid.Row="2" Grid.Column="0" Content="Contacted — last on" IsChecked="{Binding SelectedLead.IsContacted}"
-                                      Foreground="{StaticResource MutedText}" FontSize="12" Margin="0,10,0,3"
-                                      ToolTip="Tick when you've reached out; the date defaults to today" />
-                            <DatePicker Grid.Row="3" Grid.Column="0" SelectedDate="{Binding SelectedLead.ContactedOn}" />
-
-                            <TextBlock Grid.Row="2" Grid.Column="2" Text="Follow up on" Style="{StaticResource FieldLabel}" />
-                            <DatePicker Grid.Row="3" Grid.Column="2" SelectedDate="{Binding SelectedLead.FollowUpOn}" />
-
-                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Email deliverability" Style="{StaticResource FieldLabel}" />
-                            <ComboBox Grid.Row="5" Grid.Column="0" IsEditable="True" ItemsSource="{x:Static models:LeadOptions.DeliverabilityOptions}"
-                                      Text="{Binding SelectedLead.EmailDeliverability, UpdateSourceTrigger=PropertyChanged}" />
-
-                            <TextBlock Grid.Row="4" Grid.Column="2" Text="Fit priority" Style="{StaticResource FieldLabel}" />
-                            <ComboBox Grid.Row="5" Grid.Column="2" IsEditable="True" ItemsSource="{x:Static models:LeadOptions.Priorities}"
-                                      Text="{Binding SelectedLead.FitPriority, UpdateSourceTrigger=PropertyChanged}" />
-                        </Grid>
-                        <Button Content="Contacted today" Command="{Binding MarkContactedTodayCommand}" HorizontalAlignment="Left" Margin="0,12,0,0"
-                                ToolTip="Set last contacted to today. Contacting again on a later day moves the status from Contacted to Followed up." />
-
-                        <!-- Notes -->
-                        <DockPanel Margin="0,22,0,6" LastChildFill="False">
-                            <TextBlock Text="Notes" Style="{StaticResource SectionHeader}" Margin="0" VerticalAlignment="Center" />
-                            <Button DockPanel.Dock="Right" Content="Add dated note" Click="AddDatedNote_Click" Padding="10,2" MinHeight="24" />
-                        </DockPanel>
-                        <TextBox x:Name="NotesBox" Text="{Binding SelectedLead.Notes, UpdateSourceTrigger=PropertyChanged}"
-                                 Style="{StaticResource MultiLineBox}" MinHeight="140" MaxHeight="360" />
-
-                        <!-- Research details -->
-                        <TextBlock Text="Lead details" Style="{StaticResource SectionHeader}" />
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition />
-                                <ColumnDefinition Width="14" />
-                                <ColumnDefinition />
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                            </Grid.RowDefinitions>
-                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Lead ID" Style="{StaticResource FieldLabel}" />
-                            <TextBox Grid.Row="1" Grid.Column="0" Text="{Binding SelectedLead.LeadCode, UpdateSourceTrigger=PropertyChanged}" />
-                            <TextBlock Grid.Row="0" Grid.Column="2" Text="Inbox type" Style="{StaticResource FieldLabel}" />
-                            <ComboBox Grid.Row="1" Grid.Column="2" IsEditable="True" ItemsSource="{x:Static models:LeadOptions.InboxTypes}"
-                                      Text="{Binding SelectedLead.InboxType, UpdateSourceTrigger=PropertyChanged}" />
-                        </Grid>
-
-                        <TextBlock Text="Tutor / contact name" Style="{StaticResource FieldLabel}" />
-                        <TextBox x:Name="ContactNameBox" Text="{Binding SelectedLead.ContactName, UpdateSourceTrigger=PropertyChanged}" />
-
-                        <TextBlock Text="Practice" Style="{StaticResource FieldLabel}" />
-                        <TextBox Text="{Binding SelectedLead.Practice, UpdateSourceTrigger=PropertyChanged}" />
-
-                        <TextBlock Text="Email" Style="{StaticResource FieldLabel}" />
-                        <TextBox Text="{Binding SelectedLead.Email, UpdateSourceTrigger=PropertyChanged}" />
-
-                        <TextBlock Text="Location / service area" Style="{StaticResource FieldLabel}" />
-                        <TextBox Text="{Binding SelectedLead.Location, UpdateSourceTrigger=PropertyChanged}" />
-
-                        <TextBlock Text="Subjects / student levels" Style="{StaticResource FieldLabel}" />
-                        <TextBox Text="{Binding SelectedLead.Subjects, UpdateSourceTrigger=PropertyChanged}" />
-
-                        <TextBlock Text="Fit evidence" Style="{StaticResource FieldLabel}" />
-                        <TextBox Text="{Binding SelectedLead.FitEvidence, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource MultiLineBox}" />
-
-                        <TextBlock Text="Suggested outreach angle" Style="{StaticResource FieldLabel}" />
-                        <TextBox Text="{Binding SelectedLead.OutreachAngle, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource MultiLineBox}" />
-
-                        <TextBlock Text="Caveats" Style="{StaticResource FieldLabel}" />
-                        <TextBox Text="{Binding SelectedLead.Caveats, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource MultiLineBox}" />
-
-                        <TextBlock Text="Source URLs" Style="{StaticResource FieldLabel}" />
-                        <TextBox Text="{Binding SelectedLead.SourceUrls, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource MultiLineBox}" />
-
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition />
-                                <ColumnDefinition Width="14" />
-                                <ColumnDefinition />
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                            </Grid.RowDefinitions>
-                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Source verification" Style="{StaticResource FieldLabel}" />
-                            <TextBox Grid.Row="1" Grid.Column="0" Text="{Binding SelectedLead.SourceVerification, UpdateSourceTrigger=PropertyChanged}" />
-                            <TextBlock Grid.Row="0" Grid.Column="2" Text="Research date" Style="{StaticResource FieldLabel}" />
-                            <DatePicker Grid.Row="1" Grid.Column="2" SelectedDate="{Binding SelectedLead.ResearchDate}" />
-                        </Grid>
-
-                        <TextBlock Foreground="{StaticResource MutedText}" FontSize="11" TextWrapping="Wrap" Margin="0,18,0,0">
-                            <Run Text="{Binding SelectedLead.Origin, Mode=OneWay}" />
-                            <Run Text=" ·  Added" /> <Run Text="{Binding SelectedLead.CreatedAt, Mode=OneWay, StringFormat='yyyy-MM-dd HH:mm'}" />
-                            <Run Text=" ·  Saved" /> <Run Text="{Binding SelectedLead.UpdatedAt, Mode=OneWay, StringFormat='yyyy-MM-dd HH:mm'}" />
-                        </TextBlock>
+    <Grid>
+        <DockPanel>
+            <!-- Header -->
+            <Border DockPanel.Dock="Top" Height="56" Padding="20,0,16,0" Background="{StaticResource SurfaceBrush}"
+                    BorderBrush="{StaticResource HairlineBrush}" BorderThickness="0,0,0,1">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Style="{StaticResource PrimaryButton}" Command="{Binding NewLeadCommand}" ToolTip="Add a lead by hand (Ctrl+N)">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource Icon}" Text="&#xE710;" FontSize="12" Margin="0,0,8,0" />
+                                <TextBlock Text="New lead" />
+                            </StackPanel>
+                        </Button>
+                        <Button Margin="8,0,0,0" Command="{Binding ImportCsvCommand}"
+                                ToolTip="Import leads from a CSV (Ctrl+O). Leads already here are matched by Lead ID or email, and your status, dates and notes are never overwritten.">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource Icon}" Text="&#xE8B5;" Margin="0,0,8,0" />
+                                <TextBlock Text="Import CSV…" />
+                            </StackPanel>
+                        </Button>
+                        <Button x:Name="MoreButton" Style="{StaticResource IconButton}" Content="&#xE712;" Margin="8,0,0,0" ToolTip="More" Click="MoreButton_Click">
+                            <Button.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="Export all leads to CSV…" Command="{Binding ExportAllCommand}" />
+                                    <MenuItem Header="Export the leads shown on the Leads page…" Command="{Binding ExportShownCommand}" />
+                                    <Separator />
+                                    <MenuItem Header="Show the database file" Command="{Binding ShowDatabaseFileCommand}" />
+                                </ContextMenu>
+                            </Button.ContextMenu>
+                        </Button>
                     </StackPanel>
-                </ScrollViewer>
+
+                    <StackPanel Orientation="Horizontal">
+                        <Border Width="28" Height="28" CornerRadius="7" Background="{StaticResource AccentBrush}" VerticalAlignment="Center">
+                            <TextBlock Style="{StaticResource Icon}" Text="&#xE716;" Foreground="White" HorizontalAlignment="Center" />
+                        </Border>
+                        <TextBlock Text="Lead Manager" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" Margin="10,0,24,0" />
+                        <RadioButton Style="{StaticResource NavTab}" GroupName="Nav" IsChecked="{Binding IsDashboardPage}" ToolTip="Ctrl+1">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource Icon}" Text="&#xE80F;" FontWeight="Normal" Margin="0,0,7,0" />
+                                <TextBlock Text="Dashboard" />
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton Style="{StaticResource NavTab}" GroupName="Nav" IsChecked="{Binding IsLeadsPage}" ToolTip="Ctrl+2">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource Icon}" Text="&#xE716;" FontWeight="Normal" Margin="0,0,7,0" />
+                                <TextBlock Text="Leads" />
+                                <Border Background="{StaticResource HoverBrush}" CornerRadius="9" Padding="7,0,7,1" Margin="7,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding LeadCount}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" />
+                                </Border>
+                            </StackPanel>
+                        </RadioButton>
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+
+            <!-- Both pages stay alive so the grid keeps its scroll position and sort -->
+            <Grid>
+                <Grid Visibility="{Binding IsDashboardPage, Converter={StaticResource BoolToVisibility}}">
+                    <views:DashboardView DataContext="{Binding Dashboard}" />
+                </Grid>
+                <Grid Visibility="{Binding IsLeadsPage, Converter={StaticResource BoolToVisibility}}">
+                    <views:LeadListView x:Name="LeadListPage" DataContext="{Binding LeadList}" />
+                </Grid>
             </Grid>
-        </Grid>
-    </DockPanel>
+        </DockPanel>
+
+        <!-- Messages ("Copied …", "Imported …"); errors stay until dismissed -->
+        <Border DataContext="{Binding Notice}" Style="{StaticResource Toast}" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="24,0,24,24">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Style="{StaticResource ToastCloseButton}" Content="&#xE711;" Command="{Binding DismissCommand}"
+                        Margin="12,0,0,0" VerticalAlignment="Center" ToolTip="Dismiss" />
+                <TextBlock Text="{Binding Message}" Foreground="White" TextWrapping="Wrap" VerticalAlignment="Center" />
+            </DockPanel>
+        </Border>
+    </Grid>
 </Window>

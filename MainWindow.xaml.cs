@@ -1,5 +1,7 @@
 using System.ComponentModel;
+using System.IO;
 using System.Windows;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Threading;
 using LeadManager.ViewModels;
@@ -14,23 +16,14 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         DataContext = _viewModel = viewModel;
-
-        viewModel.LeadAdded += (_, _) => Dispatcher.BeginInvoke(() => ContactNameBox.Focus(), DispatcherPriority.Input);
-        LeadsGrid.SelectionChanged += (_, _) =>
-        {
-            if (LeadsGrid.SelectedItem is { } item)
-            {
-                LeadsGrid.ScrollIntoView(item);
-            }
-        };
     }
 
     protected override void OnClosing(CancelEventArgs e)
     {
-        _viewModel.SavePending();
-        if (_viewModel.HasUnsavedChanges)
+        _viewModel.Store.SavePending();
+        if (_viewModel.Store.SaveError is { } error)
         {
-            var answer = MessageBox.Show($"{_viewModel.StatusMessage}\n\nClose anyway and lose that change?", "Lead Manager",
+            var answer = MessageBox.Show(this, $"{error}\n\nClose anyway and lose that change?", "Lead Manager",
                 MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No);
             e.Cancel = answer != MessageBoxResult.Yes;
         }
@@ -39,17 +32,35 @@ public partial class MainWindow : Window
 
     private void Find_Executed(object sender, ExecutedRoutedEventArgs e)
     {
-        SearchBox.Focus();
-        SearchBox.SelectAll();
+        _viewModel.IsLeadsPage = true;
+        // Wait for the page to become visible before focusing it.
+        Dispatcher.BeginInvoke(LeadListPage.FocusSearch, DispatcherPriority.Input);
     }
 
-    private void AddDatedNote_Click(object sender, RoutedEventArgs e)
+    private void MoreButton_Click(object sender, RoutedEventArgs e)
     {
-        // Appends a dated line so the notes double as a simple contact log.
-        var existing = NotesBox.Text.TrimEnd();
-        NotesBox.Text = (existing.Length > 0 ? existing + Environment.NewLine : "") + $"{DateTime.Today:yyyy-MM-dd}: ";
-        NotesBox.Focus();
-        NotesBox.CaretIndex = NotesBox.Text.Length;
-        NotesBox.ScrollToEnd();
+        var menu = MoreButton.ContextMenu!;
+        menu.DataContext = DataContext;
+        menu.PlacementTarget = MoreButton;
+        menu.Placement = PlacementMode.Bottom;
+        menu.IsOpen = true;
     }
+
+    private void Window_DragOver(object sender, DragEventArgs e)
+    {
+        e.Effects = DroppedCsv(e) is null ? DragDropEffects.None : DragDropEffects.Copy;
+        e.Handled = true;
+    }
+
+    private void Window_Drop(object sender, DragEventArgs e)
+    {
+        if (DroppedCsv(e) is { } path)
+        {
+            _viewModel.ImportFile(path);
+        }
+    }
+
+    private static string? DroppedCsv(DragEventArgs e) =>
+        (e.Data.GetData(DataFormats.FileDrop) as string[])?
+            .FirstOrDefault(f => Path.GetExtension(f).Equals(".csv", StringComparison.OrdinalIgnoreCase));
 }

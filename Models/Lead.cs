@@ -2,12 +2,16 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace LeadManager.Models;
 
-/// <summary>One row of the Leads table. Property names match the column names so Dapper can map them.</summary>
+/// <summary>
+/// One row of the Leads table. Settable properties are the table's columns (names match so Dapper can map
+/// them); get-only properties are computed for display.
+/// </summary>
 public partial class Lead : ObservableObject
 {
     public long Id { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Subtitle))]
     private string? _leadCode;
 
     [ObservableProperty]
@@ -15,11 +19,11 @@ public partial class Lead : ObservableObject
     private string _fitPriority = "";
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(DisplayName))]
+    [NotifyPropertyChangedFor(nameof(DisplayName), nameof(SecondaryName), nameof(Subtitle))]
     private string _contactName = "";
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(DisplayName))]
+    [NotifyPropertyChangedFor(nameof(DisplayName), nameof(SecondaryName), nameof(Subtitle))]
     private string _practice = "";
 
     [ObservableProperty]
@@ -30,6 +34,7 @@ public partial class Lead : ObservableObject
     private string _inboxType = "";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Subtitle))]
     private string _location = "";
 
     [ObservableProperty]
@@ -60,6 +65,7 @@ public partial class Lead : ObservableObject
     private string _interest = LeadOptions.UnknownInterest;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(StatusTone))]
     private string _status = LeadOptions.NotContacted;
 
     [ObservableProperty]
@@ -102,8 +108,16 @@ public partial class Lead : ObservableObject
         }
     }
 
-    public string Origin => ImportedFrom.Length > 0 ? $"Imported from {ImportedFrom}" : "Added by hand";
+    public string StatusTone => LeadOptions.ToneOf(Status);
 
     public string DisplayName =>
         new[] { ContactName, Practice, Email }.FirstOrDefault(s => !string.IsNullOrWhiteSpace(s)) ?? "New lead";
+
+    /// <summary>The practice, shown under the name when the name is what <see cref="DisplayName"/> uses.</summary>
+    public string SecondaryName => string.IsNullOrWhiteSpace(ContactName) ? "" : Practice;
+
+    /// <summary>"Titus Tutors · Northwestern CT · ST-002" for headers.</summary>
+    public string Subtitle => string.Join("  ·  ", new[] { SecondaryName, Location, LeadCode ?? "" }.Where(s => !string.IsNullOrWhiteSpace(s)));
+
+    public string Origin => ImportedFrom.Length > 0 ? $"Imported from {ImportedFrom}" : "Added by hand";
 }

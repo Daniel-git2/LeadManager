@@ -32,7 +32,34 @@ public static class LeadOptions
         Contacted, FollowedUp, "Replied", "Meeting booked", "Pilot", "Customer", "Not interested", "Bounced",
     };
 
+    // Statuses that mean the lead has replied or gone further.
+    private static readonly HashSet<string> EngagedStatuses = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Replied", "Meeting booked", "Pilot", "Customer",
+    };
+
+    // Statuses where there's nothing left to chase.
+    private static readonly HashSet<string> ClosedStatuses = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Customer", "Not interested", "Bounced", "Do not contact",
+    };
+
     public static bool ImpliesContacted(string status) => ContactedStatuses.Contains(status.Trim());
+
+    public static bool IsEngaged(string status) => EngagedStatuses.Contains(status.Trim());
+
+    public static bool IsClosed(string status) => ClosedStatuses.Contains(status.Trim());
+
+    /// <summary>Groups statuses into the few tones the status badges are colored by.</summary>
+    public static string ToneOf(string status) => status.Trim().ToLowerInvariant() switch
+    {
+        "contacted" or "followed up" => "Active",
+        "replied" or "meeting booked" or "pilot" => "Engaged",
+        "customer" => "Won",
+        "not interested" or "do not contact" => "Closed",
+        "bounced" => "Problem",
+        _ => "Neutral",
+    };
 
     public static bool IsNotContacted(string status) => status.Trim().Equals(NotContacted, StringComparison.OrdinalIgnoreCase);
 
