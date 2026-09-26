@@ -58,17 +58,15 @@ public sealed partial class ComposeViewModel : ObservableObject
 {
     private readonly LeadStore _store;
     private readonly Outreach _outreach;
-    private readonly IEmailSender _sender;
     private readonly IDialogService _dialogs;
     private readonly List<SentEmail> _previousSends;
     private CancellationTokenSource? _sending;
     private int _targetCount;
 
-    public ComposeViewModel(LeadStore store, Outreach outreach, IEmailSender sender, IDialogService dialogs, IReadOnlyList<Lead> leads)
+    public ComposeViewModel(LeadStore store, Outreach outreach, IDialogService dialogs, IReadOnlyList<Lead> leads)
     {
         _store = store;
         _outreach = outreach;
-        _sender = sender;
         _dialogs = dialogs;
 
         var skipped = new List<SkippedLead>();
@@ -199,13 +197,18 @@ public sealed partial class ComposeViewModel : ObservableObject
         ? "Skip 1 lead who already got this email"
         : $"Skip {AlreadySentCount} leads who already got this email";
 
-    public string SendButtonText => SendCount == 1 ? "Send email" : $"Send {SendCount} emails";
+    public string SendButtonText => (SendCount == 1 ? "Send email" : $"Send {SendCount} emails") + (IsTestEnvironment ? " (test)" : "");
+
+    public bool IsTestEnvironment => _outreach.Environment.IsTest;
+
+    /// <summary>Where emails really go in the test environment; null in production.</summary>
+    public string? TestNotice => _outreach.TestModeNotice;
 
     public string FromText
     {
         get
         {
-            var settings = _outreach.Settings.Current;
+            var settings = _outreach.CurrentSettings;
             return string.IsNullOrWhiteSpace(settings.FromName) ? settings.FromAddress : $"{settings.FromName} <{settings.FromAddress}>";
         }
     }
@@ -246,14 +249,17 @@ public sealed partial class ComposeViewModel : ObservableObject
     private async Task SendAsync()
     {
         var targets = Recipients.Where(r => r.IsIncluded).ToList();
-        var settings = _outreach.Settings.Current;
+        var settings = _outreach.CurrentSettings;
         var pauseNote = targets.Count > 1 && settings.PauseSeconds > 0
             ? $"\n\nThere's a {settings.PauseSeconds}-second pause between emails, so this takes about {Duration(settings.PauseSeconds * (targets.Count - 1))}."
             : "";
-        if (!_dialogs.Confirm($"Send {(targets.Count == 1 ? "this email" : $"{targets.Count} emails")} now?\n\nEach lead gets their own copy from {FromText}.{pauseNote}", "Send email"))
+        var who = TestNotice ?? $"Each lead gets their own copy from {FromText}.";
+        if (!_dialogs.Confirm($"Send {(targets.Count == 1 ? "this email" : $"{targets.Count} emails")} now?\n\n{who}{pauseNote}", "Send email"))
         {
             return;
         }
+        // Chosen now rather than when the window opened, in case the settings changed meanwhile.
+        var sender = _outreach.SenderFor(_outreach.Settings.Current);
 
         Stage = ComposeStage.Sending;
         Problem = null;
@@ -270,8 +276,8 @@ public sealed partial class ComposeViewModel : ObservableObject
         IEmailSession? session = null;
         try
         {
-            ProgressText = $"Connecting to {settings.SmtpHost}…";
-            session = await _sender.ConnectAsync(settings, token);
+            ProgressText = "Connecting…";
+            session = await sender.ConnectAsync(settings, token);
             for (var i = 0; i < targets.Count; i++)
             {
                 var row = targets[i];
@@ -401,6 +407,7 @@ public sealed partial class ComposeViewModel : ObservableObject
         if (_outreach.OpenSettings())
         {
             OnPropertyChanged(nameof(FromText));
+            OnPropertyChanged(nameof(TestNotice));
             RefreshPreview();
         }
     }
@@ -452,7 +459,7 @@ public sealed partial class ComposeViewModel : ObservableObject
 
     private void RefreshRecipients()
     {
-        var settings = _outreach.Settings.Current;
+        var settings = _outreach.CurrentSettings;
         foreach (var row in Recipients)
         {
             // With a template, "already sent" means that template; without one, the same subject line.
@@ -474,7 +481,7 @@ public sealed partial class ComposeViewModel : ObservableObject
     {
         if (PreviewRecipient is { } row)
         {
-            var email = EmailRenderer.Render(Subject, Body, row.Lead, _outreach.Settings.Current);
+            var email = EmailRenderer.Render(Subject, Body, row.Lead, _outreach.CurrentSettings);
             PreviewSubject = email.Subject;
             PreviewBody = email.TextBody;
             PreviewNotes = email.Notes;

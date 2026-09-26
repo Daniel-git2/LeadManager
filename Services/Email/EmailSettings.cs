@@ -21,6 +21,16 @@ public enum MailSecurity
     None,
 }
 
+/// <summary>What the test environment does with emails, so they never reach real leads.</summary>
+public enum TestDelivery
+{
+    /// <summary>Write each email as an .eml file in the Outbox folder. Nothing is sent.</summary>
+    SaveToFolder,
+
+    /// <summary>Send through the mail server, but to <see cref="EmailSettings.TestRecipient"/> instead of the lead.</summary>
+    RedirectToMe,
+}
+
 /// <summary>How to reach the mail server and who the emails come from.</summary>
 public sealed class EmailSettings
 {
@@ -57,6 +67,12 @@ public sealed class EmailSettings
 
     /// <summary>Added under every email, e.g. a postal address and an opt-out line.</summary>
     public string Footer { get; set; } = "";
+
+    /// <summary>Test environment only.</summary>
+    public TestDelivery TestDelivery { get; set; } = TestDelivery.SaveToFolder;
+
+    /// <summary>Test environment only: where every email goes when <see cref="TestDelivery"/> is RedirectToMe.</summary>
+    public string TestRecipient { get; set; } = "";
 
     [JsonIgnore]
     public bool IsConfigured =>
@@ -101,6 +117,9 @@ public sealed class EmailSettingsStore
         Current = Load();
     }
 
+    /// <summary>Raised after settings are saved.</summary>
+    public event EventHandler? Saved;
+
     /// <summary>A copy of the saved settings; change it and pass it to <see cref="Save"/>.</summary>
     public EmailSettings Current { get; private set; }
 
@@ -113,8 +132,10 @@ public sealed class EmailSettingsStore
                 ? null
                 : Convert.ToBase64String(ProtectedData.Protect(Encoding.UTF8.GetBytes(settings.Password), Entropy, DataProtectionScope.CurrentUser)),
         };
+        Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
         File.WriteAllText(_path, JsonSerializer.Serialize(file, JsonOptions));
         Current = settings.Clone();
+        Saved?.Invoke(this, EventArgs.Empty);
     }
 
     private EmailSettings Load()

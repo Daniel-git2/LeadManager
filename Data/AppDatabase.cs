@@ -81,6 +81,23 @@ public sealed class AppDatabase
         return connection;
     }
 
+    /// <summary>
+    /// Overwrites this database with a copy of another one (e.g. production into test). The source is opened
+    /// read-only, so it's never changed.
+    /// </summary>
+    public void ReplaceWith(string sourcePath)
+    {
+        var source = new SqliteConnectionStringBuilder { DataSource = sourcePath, Mode = SqliteOpenMode.ReadOnly }.ToString();
+        using (var from = new SqliteConnection(source))
+        using (var to = Open())
+        {
+            from.Open();
+            from.BackupDatabase(to);
+        }
+        // The copy may come from an older version of the app.
+        Migrate();
+    }
+
     /// <summary>Timestamps are stored to the second so the file reads cleanly in other tools.</summary>
     public static DateTime Now()
     {

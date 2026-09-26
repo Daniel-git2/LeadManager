@@ -105,6 +105,14 @@
             </Grid>
         </Border>
 
+        <!-- Test environment: say plainly where these emails go -->
+        <Border DockPanel.Dock="Top" Background="#FFE8B0" BorderBrush="#E9C46A" BorderThickness="0,0,0,1" Padding="24,8"
+                Visibility="{Binding TestNotice, Converter={StaticResource NullToVisibility}}">
+            <TextBlock Foreground="#6B4700" TextWrapping="Wrap">
+                <Run Text="&#xE7BA;" FontFamily="{StaticResource IconFont}" /><Run Text="  " /><Run Text="{Binding TestNotice, Mode=OneWay}" />
+            </TextBlock>
+        </Border>
+
         <!-- Why sending stopped -->
         <Border DockPanel.Dock="Top" Background="{StaticResource DangerSoftBrush}" Padding="24,10"
                 Visibility="{Binding Problem, Converter={StaticResource NullToVisibility}}">

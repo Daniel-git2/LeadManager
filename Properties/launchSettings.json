@@ -1,0 +1,11 @@
+{
+  "profiles": {
+    "LeadManager (Production)": {
+      "commandName": "Project"
+    },
+    "LeadManager (Test)": {
+      "commandName": "Project",
+      "commandLineArgs": "--env test"
+    }
+  }
+}

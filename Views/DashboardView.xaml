@@ -26,6 +26,10 @@
                         </Button>
                         <Button Margin="8,0,0,0" Content="Add a lead by hand"
                                 Command="{Binding DataContext.NewLeadCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
+                        <Button Margin="8,0,0,0" Content="Copy production data"
+                                ToolTip="Fill the test environment with a copy of your real leads, templates and email history"
+                                Command="{Binding DataContext.CopyProductionDataCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                Visibility="{Binding DataContext.IsTestEnvironment, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}" />
                     </StackPanel>
                     <TextBlock Text="Tip: you can also drag a CSV file onto this window." Style="{StaticResource Muted}" FontSize="12" Margin="0,16,0,0" />
                 </StackPanel>

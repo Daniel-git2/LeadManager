@@ -152,6 +152,18 @@ public sealed partial class LeadStore : ObservableObject
         SaveError = error;
     }
 
+    /// <summary>
+    /// Re-reads every lead after the database file was replaced. Unsaved edits are dropped, since they
+    /// belong to the old data; call <see cref="SavePending"/> before replacing it.
+    /// </summary>
+    public void Reload()
+    {
+        _saveTimer.Stop();
+        _unsaved.Clear();
+        SaveError = null;
+        Load();
+    }
+
     private void Load()
     {
         foreach (var lead in Leads)

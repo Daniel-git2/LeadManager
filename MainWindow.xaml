@@ -7,7 +7,7 @@
         xmlns:views="clr-namespace:LeadManager.Views"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
-        Title="Lead Manager" Height="600" Width="1000" MinWidth="900" MinHeight="520"
+        Title="{Binding WindowTitle}" Height="600" Width="1000" MinWidth="900" MinHeight="520"
         WindowStartupLocation="CenterScreen" FontFamily="Segoe UI" FontSize="13"
         Background="{StaticResource PageBrush}" Foreground="{StaticResource TextPrimaryBrush}"
         AllowDrop="True" DragOver="Window_DragOver" Drop="Window_Drop">
@@ -23,6 +23,22 @@
 
     <Grid>
         <DockPanel>
+            <!-- Test environment: impossible to miss -->
+            <Border DockPanel.Dock="Top" Background="#FFE8B0" BorderBrush="#E9C46A" BorderThickness="0,0,0,1" Padding="20,5,12,5"
+                    Visibility="{Binding IsTestEnvironment, Converter={StaticResource BoolToVisibility}}">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                        <Button Style="{StaticResource GhostButton}" Foreground="#6B4700" MinHeight="26" Padding="10,2" Content="Open outbox"
+                                Command="{Binding OpenOutboxCommand}" ToolTip="Test emails are saved here" />
+                        <Button Style="{StaticResource GhostButton}" Foreground="#6B4700" MinHeight="26" Padding="10,2" Content="Switch to production"
+                                Command="{Binding SwitchEnvironmentCommand}" />
+                    </StackPanel>
+                    <TextBlock VerticalAlignment="Center" Foreground="#6B4700" TextTrimming="CharacterEllipsis">
+                        <Run Text="&#xE7BA;" FontFamily="{StaticResource IconFont}" /><Run Text="  TEST ENVIRONMENT" FontWeight="Bold" /><Run Text="   " /><Run Text="{Binding TestEnvironmentText, Mode=OneWay}" />
+                    </TextBlock>
+                </DockPanel>
+            </Border>
+
             <!-- Header -->
             <Border DockPanel.Dock="Top" Height="56" Padding="20,0,16,0" Background="{StaticResource SurfaceBrush}"
                     BorderBrush="{StaticResource HairlineBrush}" BorderThickness="0,0,0,1">
@@ -54,6 +70,16 @@
                                     <MenuItem Header="Export the leads shown on the Leads page…" Command="{Binding ExportShownCommand}" />
                                     <Separator />
                                     <MenuItem Header="Show the database file" Command="{Binding ShowDatabaseFileCommand}" />
+                                    <Separator />
+                                    <MenuItem Header="{Binding SwitchEnvironmentText}" Command="{Binding SwitchEnvironmentCommand}">
+                                        <MenuItem.Icon>
+                                            <TextBlock Style="{StaticResource Icon}" Text="&#xE8AB;" />
+                                        </MenuItem.Icon>
+                                    </MenuItem>
+                                    <MenuItem Header="Copy production data into test…" Command="{Binding CopyProductionDataCommand}"
+                                              Visibility="{Binding IsTestEnvironment, Converter={StaticResource BoolToVisibility}}" />
+                                    <MenuItem Header="Open the test outbox folder" Command="{Binding OpenOutboxCommand}"
+                                              Visibility="{Binding IsTestEnvironment, Converter={StaticResource BoolToVisibility}}" />
                                 </ContextMenu>
                             </Button.ContextMenu>
                         </Button>

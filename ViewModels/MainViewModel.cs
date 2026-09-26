@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -13,19 +14,30 @@ public sealed partial class MainViewModel : ObservableObject
 {
     private readonly IDialogService _dialogs;
     private readonly Outreach _outreach;
+    private readonly EnvironmentService _environments;
 
-    public MainViewModel(LeadStore store, IDialogService dialogs, Outreach outreach)
+    public MainViewModel(LeadStore store, IDialogService dialogs, Outreach outreach, EnvironmentService environments)
     {
         Store = store;
         _dialogs = dialogs;
         _outreach = outreach;
+        _environments = environments;
         LeadList = new LeadListViewModel(store, dialogs, Notice, outreach);
         Dashboard = new DashboardViewModel(store, dialogs, outreach, ShowLeads);
         _currentPage = Dashboard;
 
         store.PropertyChanged += OnStorePropertyChanged;
         store.Changed += (_, _) => OnPropertyChanged(nameof(LeadCount));
+        outreach.Settings.Saved += (_, _) => OnPropertyChanged(nameof(TestEnvironmentText));
     }
+
+    public bool IsTestEnvironment => _environments.Current.IsTest;
+
+    public string WindowTitle => IsTestEnvironment ? "Lead Manager (Test)" : "Lead Manager";
+
+    public string TestEnvironmentText => _outreach.TestModeSummary ?? "";
+
+    public string SwitchEnvironmentText => IsTestEnvironment ? "Switch to production" : "Switch to the test environment";
 
     public LeadStore Store { get; }
 
@@ -128,6 +140,49 @@ public sealed partial class MainViewModel : ObservableObject
 
     [RelayCommand]
     private void ShowDatabaseFile() => LeadActions.ShowInExplorer(Store.DatabasePath);
+
+    [RelayCommand]
+    private void SwitchEnvironment()
+    {
+        var target = _environments.Current.Other;
+        var question = target.IsTest
+            ? "Restart Lead Manager in the test environment?\n\nTest has its own copy of the data, and emails sent there never reach your leads."
+            : "Restart Lead Manager in production?\n\nEmails sent in production go to your real leads.";
+        if (_dialogs.Confirm(question, "Switch environment"))
+        {
+            _environments.SwitchToOther();
+        }
+    }
+
+    [RelayCommand]
+    private void CopyProductionData()
+    {
+        if (!_environments.ProductionDataExists)
+        {
+            _dialogs.ShowError("There's no production data yet.", "Copy production data");
+            return;
+        }
+        if (!_dialogs.Confirm("Replace the test data with a copy of production?\n\nAll test leads, templates and email history are replaced. Production isn't changed.", "Copy production data"))
+        {
+            return;
+        }
+        try
+        {
+            _environments.CopyProductionData();
+            Notice.Show($"Copied production into test: {Store.Leads.Count} leads.", seconds: 6);
+        }
+        catch (SqliteException ex)
+        {
+            _dialogs.ShowError($"Couldn't copy the production data.\n\n{ex.Message}", "Copy production data");
+        }
+    }
+
+    [RelayCommand]
+    private void OpenOutbox()
+    {
+        Directory.CreateDirectory(_environments.Current.OutboxFolder);
+        Process.Start("explorer.exe", $"\"{_environments.Current.OutboxFolder}\"");
+    }
 
     [RelayCommand]
     private void OpenEmailSettings()

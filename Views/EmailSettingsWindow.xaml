@@ -52,6 +52,37 @@
                                Text="Set this up once and you can email leads straight from Lead Manager." />
                 </Border>
 
+                <!-- Test environment: where test emails go instead of to leads -->
+                <Border Style="{StaticResource Card}" Margin="0,16,0,0" Background="#FFF6DE" BorderBrush="#E9C46A"
+                        Visibility="{Binding IsTestEnvironment, Converter={StaticResource BoolToVisibility}}">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource CardTitle}" Foreground="#6B4700">
+                            <Run Text="&#xE7BA;" FontFamily="{StaticResource IconFont}" FontSize="14" /><Run Text="  Test environment" />
+                        </TextBlock>
+                        <TextBlock Text="Emails sent while testing never reach your leads. Choose what happens to them instead:"
+                                   Foreground="#6B4700" TextWrapping="Wrap" Margin="0,4,0,8" />
+                        <RadioButton GroupName="TestDelivery" IsChecked="{Binding SaveTestEmailsToFolder}" Margin="0,4,0,0">
+                            <TextBlock TextWrapping="Wrap">
+                                <Run Text="Save them as files you can open in Outlook" FontWeight="SemiBold" /><Run Text=". Nothing is sent. " />
+                                <Hyperlink Command="{Binding OpenOutboxCommand}">Open the outbox folder</Hyperlink>
+                            </TextBlock>
+                        </RadioButton>
+                        <RadioButton GroupName="TestDelivery" IsChecked="{Binding RedirectTestEmails}" Margin="0,10,0,0">
+                            <TextBlock TextWrapping="Wrap">
+                                <Run Text="Send them all to my own address" FontWeight="SemiBold" /><Run Text=", using the mail account below." />
+                            </TextBlock>
+                        </RadioButton>
+                        <DockPanel Margin="22,6,0,0" Visibility="{Binding RedirectTestEmails, Converter={StaticResource BoolToVisibility}}">
+                            <TextBlock Text="Send to" VerticalAlignment="Center" Margin="0,0,10,0" />
+                            <TextBox Text="{Binding TestRecipient, UpdateSourceTrigger=PropertyChanged}" />
+                        </DockPanel>
+                        <Button Content="Use my production mail settings" HorizontalAlignment="Left" Margin="0,12,0,0"
+                                Command="{Binding CopyFromProductionCommand}"
+                                ToolTip="Fill in the account below from production, so you don't have to retype it"
+                                Visibility="{Binding CanCopyFromProduction, Converter={StaticResource BoolToVisibility}}" />
+                    </StackPanel>
+                </Border>
+
                 <Border Style="{StaticResource Card}" Margin="0,16,0,0">
                     <StackPanel>
                         <TextBlock Text="Email provider" Style="{StaticResource CardTitle}" />
@@ -82,7 +113,7 @@
                             <TextBlock Grid.Row="2" Grid.Column="2" Text="Password" Style="{StaticResource FieldLabel}" />
                             <PasswordBox x:Name="PasswordInput" Grid.Row="3" Grid.Column="2" PasswordChanged="PasswordInput_PasswordChanged" />
                             <TextBlock Grid.Row="4" Grid.Column="2" Text="{Binding PasswordHint}" Style="{StaticResource Muted}" FontSize="11" Margin="0,3,0,0"
-                                       Visibility="{Binding HasSavedPassword, Converter={StaticResource BoolToVisibility}}" />
+                                       Visibility="{Binding PasswordHint, Converter={StaticResource NullToVisibility}}" />
                         </Grid>
 
                         <Expander Header="Server details" Margin="0,16,0,0" IsExpanded="{Binding ShowServerDetails, Mode=OneTime}">

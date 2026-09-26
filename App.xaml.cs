@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using LeadManager.Data;
@@ -21,19 +22,29 @@ public partial class App : Application
         };
 
         // Kept out of OneDrive on purpose: sync clients can corrupt a SQLite file that's open. Use Export CSV for backups.
-        var dataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "LeadManager");
-        Directory.CreateDirectory(dataFolder);
-        var database = new AppDatabase(Path.Combine(dataFolder, "leads.db"));
+        var baseFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "LeadManager");
+        var environment = AppEnvironment.FromCommandLine(e.Args, baseFolder);
+        Directory.CreateDirectory(environment.DataFolder);
+
+        var database = new AppDatabase(environment.DatabasePath);
         var store = new LeadStore(new LeadRepository(database));
         var dialogs = new DialogService();
         var outreach = new Outreach(
             store,
             new EmailRepository(database),
-            new EmailSettingsStore(Path.Combine(dataFolder, "email-settings.json")),
+            new EmailSettingsStore(environment.EmailSettingsPath),
+            environment,
             new SmtpEmailSender(),
             dialogs);
+        var environments = new EnvironmentService(environment, database, store, RestartIn);
 
-        MainWindow = new MainWindow(new MainViewModel(store, dialogs, outreach));
+        MainWindow = new MainWindow(new MainViewModel(store, dialogs, outreach, environments));
         MainWindow.Show();
+    }
+
+    private void RestartIn(AppEnvironment target)
+    {
+        Process.Start(new ProcessStartInfo(Environment.ProcessPath!, target.CommandLineArguments) { UseShellExecute = false });
+        Shutdown();
     }
 }
