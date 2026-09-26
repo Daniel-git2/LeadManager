@@ -100,6 +100,13 @@ public sealed partial class LeadStore : ObservableObject
         }
     }
 
+    /// <summary>Adds a dated line to the end of the lead's notes, like the "Add dated note" button.</summary>
+    public void AddNote(Lead lead, string note)
+    {
+        var existing = lead.Notes.TrimEnd();
+        lead.Notes = (existing.Length > 0 ? existing + Environment.NewLine : "") + $"{DateTime.Today:yyyy-MM-dd}: {note}";
+    }
+
     public Lead? FindByEmail(string email) =>
         Leads.FirstOrDefault(l => l.Email.Trim().Equals(email.Trim(), StringComparison.OrdinalIgnoreCase));
 

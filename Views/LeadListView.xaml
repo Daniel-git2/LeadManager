@@ -16,8 +16,8 @@
                 </MenuItem.Icon>
             </MenuItem>
             <Separator />
-            <MenuItem Header="Email…" CommandParameter="{Binding}"
-                      Command="{Binding PlacementTarget.Tag.SendEmailCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
+            <MenuItem Header="Message…" CommandParameter="{Binding}"
+                      Command="{Binding PlacementTarget.Tag.MessageCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
                 <MenuItem.Icon>
                     <TextBlock Style="{StaticResource Icon}" Text="&#xE715;" />
                 </MenuItem.Icon>
@@ -115,12 +115,75 @@
                     Visibility="{Binding HasActiveFilters, Converter={StaticResource BoolToVisibility}}" />
         </Grid>
 
+        <!-- Actions for the ticked rows -->
+        <Border DockPanel.Dock="Top" Background="{StaticResource AccentSoftBrush}" BorderBrush="#BFD6F3" BorderThickness="1" CornerRadius="8"
+                Padding="12,6" Margin="0,0,0,10" Visibility="{Binding HasSelection, Converter={StaticResource BoolToVisibility}}">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Content="Clear selection" Click="ClearSelection_Click" ToolTip="Esc" />
+                <WrapPanel VerticalAlignment="Center">
+                    <TextBlock Text="{Binding SelectionSummary}" FontWeight="SemiBold" Foreground="{StaticResource AccentPressedBrush}"
+                               VerticalAlignment="Center" Margin="0,0,14,0" />
+                    <Button Style="{StaticResource PrimaryButton}" Command="{Binding MessageCommand}" Margin="0,0,6,0" MinHeight="30" Padding="12,3"
+                            ToolTip="Write one email; each selected lead gets their own personalised copy">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource Icon}" Text="&#xE715;" Margin="0,0,8,0" />
+                            <TextBlock Text="Message…" />
+                        </StackPanel>
+                    </Button>
+                    <Button Command="{Binding MarkContactedTodayCommand}" Margin="0,0,6,0" MinHeight="30" Padding="10,3">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource Icon}" Text="&#xE73E;" Margin="0,0,6,0" />
+                            <TextBlock Text="Contacted today" />
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="StatusMenuButton" Margin="0,0,6,0" MinHeight="30" Padding="10,3" Click="StatusMenuButton_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Set status" />
+                            <TextBlock Style="{StaticResource Icon}" Text="&#xE70D;" FontSize="9" Margin="6,1,0,0" />
+                        </StackPanel>
+                        <Button.ContextMenu>
+                            <ContextMenu ItemsSource="{Binding Statuses}">
+                                <ContextMenu.ItemContainerStyle>
+                                    <Style TargetType="MenuItem">
+                                        <Setter Property="Header" Value="{Binding}" />
+                                        <Setter Property="CommandParameter" Value="{Binding}" />
+                                        <Setter Property="Command" Value="{Binding DataContext.SetStatusCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                    </Style>
+                                </ContextMenu.ItemContainerStyle>
+                            </ContextMenu>
+                        </Button.ContextMenu>
+                    </Button>
+                    <Button x:Name="FollowUpMenuButton" Margin="0,0,6,0" MinHeight="30" Padding="10,3" Click="FollowUpMenuButton_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Follow up" />
+                            <TextBlock Style="{StaticResource Icon}" Text="&#xE70D;" FontSize="9" Margin="6,1,0,0" />
+                        </StackPanel>
+                        <Button.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="In 3 days" Command="{Binding SetFollowUpCommand}" CommandParameter="3" />
+                                <MenuItem Header="In 1 week" Command="{Binding SetFollowUpCommand}" CommandParameter="7" />
+                                <MenuItem Header="In 2 weeks" Command="{Binding SetFollowUpCommand}" CommandParameter="14" />
+                                <Separator />
+                                <MenuItem Header="Clear follow-up" Command="{Binding SetFollowUpCommand}" CommandParameter="0" />
+                            </ContextMenu>
+                        </Button.ContextMenu>
+                    </Button>
+                    <Button Style="{StaticResource DangerGhostButton}" Command="{Binding DeleteLeadCommand}" MinHeight="30" Padding="10,3">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource Icon}" Text="&#xE74D;" Margin="0,0,6,0" />
+                            <TextBlock Text="Delete…" />
+                        </StackPanel>
+                    </Button>
+                </WrapPanel>
+            </DockPanel>
+        </Border>
+
         <!-- The grid -->
         <Border Style="{StaticResource Card}" Padding="1">
             <Grid>
                 <DataGrid x:Name="LeadsGrid" Style="{StaticResource LeadGrid}" ItemsSource="{Binding LeadsView}" SelectedItem="{Binding SelectedLead}"
-                          IsSynchronizedWithCurrentItem="False" HorizontalScrollBarVisibility="Auto"
-                          MouseDoubleClick="LeadsGrid_MouseDoubleClick" PreviewKeyDown="LeadsGrid_PreviewKeyDown">
+                          SelectionMode="Extended" IsSynchronizedWithCurrentItem="False" HorizontalScrollBarVisibility="Auto"
+                          MouseDoubleClick="LeadsGrid_MouseDoubleClick" PreviewKeyDown="LeadsGrid_PreviewKeyDown" SelectionChanged="LeadsGrid_SelectionChanged">
                     <DataGrid.RowStyle>
                         <Style TargetType="DataGridRow">
                             <Setter Property="Tag" Value="{Binding DataContext, RelativeSource={RelativeSource AncestorType=DataGrid}}" />
@@ -136,8 +199,19 @@
                         </Style>
                     </DataGrid.RowStyle>
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="ID" Binding="{Binding LeadCode}" Width="72" ElementStyle="{StaticResource CellText}" />
-                        <DataGridTemplateColumn Header="Lead" SortMemberPath="ContactName" Width="2*" MinWidth="150">
+                        <DataGridTemplateColumn Width="40" CanUserSort="False" CanUserResize="False">
+                            <DataGridTemplateColumn.Header>
+                                <CheckBox x:Name="SelectAllBox" Click="SelectAllBox_Click" Focusable="False" ToolTip="Select all shown leads (Ctrl+A)" />
+                            </DataGridTemplateColumn.Header>
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <CheckBox Focusable="False" VerticalAlignment="Center" PreviewMouseLeftButtonDown="RowCheckBox_PreviewMouseLeftButtonDown"
+                                              IsChecked="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=DataGridRow}, Mode=OneWay}" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="ID" Binding="{Binding LeadCode}" Width="66" ElementStyle="{StaticResource CellText}" />
+                        <DataGridTemplateColumn Header="Lead" SortMemberPath="ContactName" Width="2*" MinWidth="130">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <StackPanel VerticalAlignment="Center">
@@ -148,9 +222,9 @@
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        <DataGridTextColumn Header="Email" Binding="{Binding Email}" Width="1.5*" MinWidth="110" ElementStyle="{StaticResource CellText}" />
-                        <DataGridTextColumn Header="Location" Binding="{Binding Location}" Width="*" MinWidth="80" ElementStyle="{StaticResource CellText}" />
-                        <DataGridTemplateColumn Header="Priority" SortMemberPath="PriorityRank" Width="80">
+                        <DataGridTextColumn Header="Email" Binding="{Binding Email}" Width="1.5*" MinWidth="100" ElementStyle="{StaticResource CellText}" />
+                        <DataGridTextColumn Header="Location" Binding="{Binding Location}" Width="*" MinWidth="60" ElementStyle="{StaticResource CellText}" />
+                        <DataGridTemplateColumn Header="Priority" SortMemberPath="PriorityRank" Width="76">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
@@ -160,7 +234,7 @@
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        <DataGridTemplateColumn Header="Status" SortMemberPath="Status" Width="118">
+                        <DataGridTemplateColumn Header="Status" SortMemberPath="Status" Width="122">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <Border Style="{StaticResource StatusBadge}">
@@ -170,8 +244,8 @@
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
                         <DataGridTextColumn Header="Last contact" Binding="{Binding ContactedOn, Converter={StaticResource FriendlyDate}}"
-                                            SortMemberPath="ContactedOn" Width="100" ElementStyle="{StaticResource CellText}" />
-                        <DataGridTemplateColumn Header="Follow up" SortMemberPath="FollowUpOn" Width="104">
+                                            SortMemberPath="ContactedOn" Width="94" ElementStyle="{StaticResource CellText}" />
+                        <DataGridTemplateColumn Header="Follow up" SortMemberPath="FollowUpOn" Width="100">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
@@ -193,7 +267,7 @@
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        <DataGridTemplateColumn Width="92" CanUserSort="False" CanUserResize="False">
+                        <DataGridTemplateColumn Width="88" CanUserSort="False" CanUserResize="False">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <Button Style="{StaticResource SmallButton}" CommandParameter="{Binding}" ToolTip="Open this lead (or double-click the row)"

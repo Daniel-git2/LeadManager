@@ -14,10 +14,16 @@ public sealed class DialogService : IDialogService
         Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsActive) ?? Application.Current.MainWindow;
 
     public bool Confirm(string message, string title) =>
-        Show(message, title, MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No) == MessageBoxResult.Yes;
+        Show(message, title, MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes;
 
     public void ShowError(string message, string title) =>
         Show(message, title, MessageBoxButton.OK, MessageBoxImage.Warning, MessageBoxResult.OK);
+
+    public string? PromptText(string title, string prompt, string initialText)
+    {
+        var window = new PromptWindow(title, prompt, initialText) { Owner = Owner };
+        return window.ShowDialog() == true ? window.Answer : null;
+    }
 
     public string? PickCsvToOpen()
     {
@@ -31,11 +37,23 @@ public sealed class DialogService : IDialogService
         return ShowFileDialog(dialog) ? dialog.FileName : null;
     }
 
+    public string? PickMsgToOpen()
+    {
+        var dialog = new OpenFileDialog { Title = "Import an email template from Outlook", Filter = "Outlook messages (*.msg)|*.msg|All files (*.*)|*.*" };
+        return ShowFileDialog(dialog) ? dialog.FileName : null;
+    }
+
     public void ShowLead(LeadDetailViewModel viewModel) =>
         new LeadWindow(viewModel) { Owner = Owner }.ShowDialog();
 
     public bool ShowNewLead(NewLeadViewModel viewModel) =>
         new NewLeadWindow(viewModel) { Owner = Owner }.ShowDialog() == true;
+
+    public void ShowCompose(ComposeViewModel viewModel) =>
+        new ComposeWindow(viewModel) { Owner = Owner }.ShowDialog();
+
+    public bool ShowEmailSettings(EmailSettingsViewModel viewModel) =>
+        new EmailSettingsWindow(viewModel) { Owner = Owner }.ShowDialog() == true;
 
     private static bool ShowFileDialog(CommonDialog dialog) =>
         (Owner is { } owner ? dialog.ShowDialog(owner) : dialog.ShowDialog()) == true;

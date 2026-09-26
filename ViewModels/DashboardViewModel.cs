@@ -17,15 +17,17 @@ public sealed partial class DashboardViewModel : ObservableObject
 
     private readonly LeadStore _store;
     private readonly IDialogService _dialogs;
+    private readonly Outreach _outreach;
     private readonly Action<string, string> _showLeads;
     private List<Lead> _allFollowUps = [];
     private List<Lead> _allUpNext = [];
 
     /// <param name="showLeads">Switches to the Leads page with a quick filter and status filter applied.</param>
-    public DashboardViewModel(LeadStore store, IDialogService dialogs, Action<string, string> showLeads)
+    public DashboardViewModel(LeadStore store, IDialogService dialogs, Outreach outreach, Action<string, string> showLeads)
     {
         _store = store;
         _dialogs = dialogs;
+        _outreach = outreach;
         _showLeads = showLeads;
         store.Changed += (_, _) => Refresh();
         Refresh();
@@ -129,7 +131,7 @@ public sealed partial class DashboardViewModel : ObservableObject
 
     private void View(Lead lead, IEnumerable<Lead> sequence)
     {
-        _dialogs.ShowLead(new LeadDetailViewModel(_store, _dialogs, lead, sequence));
+        _dialogs.ShowLead(new LeadDetailViewModel(_store, _dialogs, _outreach, lead, sequence));
         _store.SavePending();
         Refresh();
     }

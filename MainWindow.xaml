@@ -44,6 +44,12 @@
                         <Button x:Name="MoreButton" Style="{StaticResource IconButton}" Content="&#xE712;" Margin="8,0,0,0" ToolTip="More" Click="MoreButton_Click">
                             <Button.ContextMenu>
                                 <ContextMenu>
+                                    <MenuItem Header="Email settings…" Command="{Binding OpenEmailSettingsCommand}">
+                                        <MenuItem.Icon>
+                                            <TextBlock Style="{StaticResource Icon}" Text="&#xE715;" />
+                                        </MenuItem.Icon>
+                                    </MenuItem>
+                                    <Separator />
                                     <MenuItem Header="Export all leads to CSV…" Command="{Binding ExportAllCommand}" />
                                     <MenuItem Header="Export the leads shown on the Leads page…" Command="{Binding ExportShownCommand}" />
                                     <Separator />

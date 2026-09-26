@@ -12,20 +12,23 @@ namespace LeadManager.ViewModels;
 public sealed partial class LeadDetailViewModel : ObservableObject
 {
     private readonly IDialogService _dialogs;
+    private readonly Outreach _outreach;
 
     // A snapshot of the list at the time the window opened, so editing a lead doesn't reshuffle it.
     private readonly List<Lead> _sequence;
 
-    public LeadDetailViewModel(LeadStore store, IDialogService dialogs, Lead lead, IEnumerable<Lead> sequence)
+    public LeadDetailViewModel(LeadStore store, IDialogService dialogs, Outreach outreach, Lead lead, IEnumerable<Lead> sequence)
     {
         Store = store;
         _dialogs = dialogs;
+        _outreach = outreach;
         _sequence = sequence.ToList();
         if (!_sequence.Contains(lead))
         {
             _sequence = [lead];
         }
         _lead = lead;
+        _emailHistory = outreach.HistoryFor(lead);
     }
 
     /// <summary>Asks the window to close, e.g. after the last lead in it was deleted.</summary>
@@ -40,11 +43,34 @@ public sealed partial class LeadDetailViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(PreviousCommand), nameof(NextCommand))]
     private Lead _lead;
 
+    /// <summary>Emails sent to this lead from Lead Manager, newest first.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasEmailHistory))]
+    private List<SentEmail> _emailHistory;
+
+    public bool HasEmailHistory => EmailHistory.Count > 0;
+
     public bool HasSequence => _sequence.Count > 1;
 
     public string Position => $"{_sequence.IndexOf(Lead) + 1} of {_sequence.Count}";
 
-    partial void OnLeadChanged(Lead value) => Notice.Dismiss();
+    partial void OnLeadChanged(Lead value)
+    {
+        Notice.Dismiss();
+        EmailHistory = _outreach.HistoryFor(value);
+    }
+
+    [RelayCommand]
+    private void Compose()
+    {
+        Store.SavePending();
+        var sent = _outreach.Compose([Lead]);
+        EmailHistory = _outreach.HistoryFor(Lead);
+        if (sent > 0)
+        {
+            Notice.Show($"Email sent. Status: {Lead.Status}.");
+        }
+    }
 
     [RelayCommand(CanExecute = nameof(CanGoPrevious))]
     private void Previous() => Lead = _sequence[_sequence.IndexOf(Lead) - 1];
@@ -59,9 +85,6 @@ public sealed partial class LeadDetailViewModel : ObservableObject
         var index = _sequence.IndexOf(Lead);
         return index >= 0 && index < _sequence.Count - 1;
     }
-
-    [RelayCommand]
-    private void SendEmail() => Notice.Show(LeadActions.SendEmail(Lead));
 
     [RelayCommand]
     private void CopyEmail() => Notice.Show(LeadActions.CopyEmail(Lead));

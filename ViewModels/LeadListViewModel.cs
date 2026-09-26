@@ -23,12 +23,14 @@ public sealed partial class LeadListViewModel : ObservableObject
     private readonly LeadStore _store;
     private readonly IDialogService _dialogs;
     private readonly Notice _notice;
+    private readonly Outreach _outreach;
 
-    public LeadListViewModel(LeadStore store, IDialogService dialogs, Notice notice)
+    public LeadListViewModel(LeadStore store, IDialogService dialogs, Notice notice, Outreach outreach)
     {
         _store = store;
         _dialogs = dialogs;
         _notice = notice;
+        _outreach = outreach;
         var view = new ListCollectionView(store.Leads) { Filter = item => IsShown((Lead)item) };
         view.SortDescriptions.Add(new SortDescription(nameof(Lead.LeadCode), ListSortDirection.Ascending));
         LeadsView = view;
@@ -77,6 +79,26 @@ public sealed partial class LeadListViewModel : ObservableObject
 
     public string ShownSummary => HasActiveFilters ? $"Showing {ShownCount} of {AllCount}" : $"{AllCount} leads";
 
+    /// <summary>The rows ticked in the grid (kept in step by the view, since DataGrid.SelectedItems can't be bound).</summary>
+    public IReadOnlyList<Lead> SelectedLeads { get; private set; } = [];
+
+    public int SelectedCount => SelectedLeads.Count;
+
+    public bool HasSelection => SelectedLeads.Count > 0;
+
+    public string SelectionSummary => SelectedCount == 1 ? "1 selected" : $"{SelectedCount} selected";
+
+    public IReadOnlyList<string> Statuses => LeadOptions.Statuses;
+
+    public void UpdateSelection(IReadOnlyList<Lead> selected)
+    {
+        SelectedLeads = selected;
+        OnPropertyChanged(nameof(SelectedLeads));
+        OnPropertyChanged(nameof(SelectedCount));
+        OnPropertyChanged(nameof(HasSelection));
+        OnPropertyChanged(nameof(SelectionSummary));
+    }
+
     partial void OnSearchTextChanged(string value) => Refresh();
 
     partial void OnStatusFilterChanged(string value) => Refresh();
@@ -117,7 +139,7 @@ public sealed partial class LeadListViewModel : ObservableObject
         {
             return;
         }
-        var detail = new LeadDetailViewModel(_store, _dialogs, lead, LeadsView.Cast<Lead>());
+        var detail = new LeadDetailViewModel(_store, _dialogs, _outreach, lead, LeadsView.Cast<Lead>());
         _dialogs.ShowLead(detail);
 
         // Re-apply the filters now that the edits are done, and land on the last lead viewed.
@@ -125,12 +147,15 @@ public sealed partial class LeadListViewModel : ObservableObject
         SelectedLead = _store.Leads.Contains(detail.Lead) ? detail.Lead : null;
     }
 
+    /// <summary>Emails the selected leads, or just <paramref name="lead"/> when it isn't part of the selection.</summary>
     [RelayCommand]
-    private void SendEmail(Lead? lead)
+    private void Message(Lead? lead)
     {
-        if ((lead ?? SelectedLead) is { } target)
+        var targets = TargetsFor(lead);
+        var sent = _outreach.Compose(targets);
+        if (sent > 0)
         {
-            _notice.Show(LeadActions.SendEmail(target));
+            _notice.Show(sent == 1 ? "Email sent." : $"Sent {sent} emails.", seconds: 6);
         }
     }
 
@@ -155,24 +180,70 @@ public sealed partial class LeadListViewModel : ObservableObject
     [RelayCommand]
     private void MarkContactedToday(Lead? lead)
     {
-        if ((lead ?? SelectedLead) is { } target)
+        var targets = TargetsFor(lead);
+        foreach (var target in targets)
         {
             _store.MarkContactedToday(target);
-            _notice.Show($"{target.DisplayName} marked as contacted today.");
         }
+        if (targets.Count > 0)
+        {
+            _notice.Show(targets.Count == 1 ? $"{targets[0].DisplayName} marked as contacted today." : $"{targets.Count} leads marked as contacted today.");
+        }
+    }
+
+    [RelayCommand]
+    private void SetStatus(string status)
+    {
+        foreach (var target in SelectedLeads)
+        {
+            target.Status = status;
+        }
+        _notice.Show($"{Leads(SelectedCount)} set to {status}.");
+    }
+
+    /// <summary>Sets a follow-up this many days out for the selected leads; "0" clears it.</summary>
+    [RelayCommand]
+    private void SetFollowUp(string days)
+    {
+        var count = int.Parse(days);
+        foreach (var target in SelectedLeads)
+        {
+            target.FollowUpOn = count == 0 ? null : DateTime.Today.AddDays(count);
+        }
+        _notice.Show(count == 0
+            ? $"Cleared the follow-up for {Leads(SelectedCount)}."
+            : $"{Leads(SelectedCount)} to follow up on {DateTime.Today.AddDays(count):dddd, MMM d}.");
     }
 
     [RelayCommand]
     private void DeleteLead(Lead? lead)
     {
-        if ((lead ?? SelectedLead) is not { } target
-            || !_dialogs.Confirm($"Delete {target.DisplayName}?\n\nThis removes the lead and its notes for good.", "Delete lead"))
+        var targets = TargetsFor(lead);
+        var question = targets.Count == 1
+            ? $"Delete {targets[0].DisplayName}?\n\nThis removes the lead and its notes for good."
+            : $"Delete {targets.Count} leads?\n\nThis removes them and their notes for good.";
+        if (targets.Count == 0 || !_dialogs.Confirm(question, targets.Count == 1 ? "Delete lead" : "Delete leads"))
         {
             return;
         }
-        _store.Delete(target);
-        _notice.Show($"Deleted {target.DisplayName}.");
+        foreach (var target in targets)
+        {
+            _store.Delete(target);
+        }
+        _notice.Show(targets.Count == 1 ? $"Deleted {targets[0].DisplayName}." : $"Deleted {targets.Count} leads.");
     }
+
+    // A row's menu acts on the whole selection when that row is part of it, otherwise on the row alone.
+    private IReadOnlyList<Lead> TargetsFor(Lead? lead)
+    {
+        if (lead is null)
+        {
+            return SelectedLeads.Count > 0 ? SelectedLeads.ToList() : SelectedLead is { } single ? [single] : [];
+        }
+        return SelectedLeads.Count > 1 && SelectedLeads.Contains(lead) ? SelectedLeads.ToList() : [lead];
+    }
+
+    private static string Leads(int count) => count == 1 ? "1 lead" : $"{count} leads";
 
     private void Refresh()
     {

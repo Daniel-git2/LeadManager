@@ -9,16 +9,6 @@ namespace LeadManager.Services;
 /// <summary>Things you can do with a lead outside the app. Each returns a message to show the user.</summary>
 public static class LeadActions
 {
-    public static string SendEmail(Lead lead)
-    {
-        var email = lead.Email.Trim();
-        if (!email.Contains('@') || email.Any(char.IsWhiteSpace))
-        {
-            return $"{lead.DisplayName} doesn't have a usable email address.";
-        }
-        return Open($"mailto:{email}") ?? $"Opening a new email to {email}…";
-    }
-
     public static string CopyEmail(Lead lead)
     {
         var email = lead.Email.Trim();

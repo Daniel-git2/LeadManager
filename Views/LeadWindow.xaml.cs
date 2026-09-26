@@ -28,8 +28,6 @@ public partial class LeadWindow : Window
         base.OnClosing(e);
     }
 
-    private void Close_Click(object sender, RoutedEventArgs e) => Close();
-
     private void AddDatedNote_Click(object sender, RoutedEventArgs e)
     {
         // Appends a dated line so the notes double as a simple contact log.

@@ -40,7 +40,7 @@
                     </WrapPanel>
                     <TextBlock Text="{Binding Lead.Subtitle}" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,3,0,0" TextTrimming="CharacterEllipsis" />
                     <WrapPanel Margin="0,14,0,0">
-                        <Button Style="{StaticResource PrimaryButton}" Command="{Binding SendEmailCommand}" Margin="0,0,8,0" ToolTip="Start a new email in your mail app">
+                        <Button Style="{StaticResource PrimaryButton}" Command="{Binding ComposeCommand}" Margin="0,0,8,0" ToolTip="Write and send an email to this lead">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Style="{StaticResource Icon}" Text="&#xE715;" Margin="0,0,8,0" />
                                 <TextBlock Text="Email…" />
@@ -96,7 +96,7 @@
                         <TextBlock Text="Delete lead" />
                     </StackPanel>
                 </Button>
-                <Button DockPanel.Dock="Right" Content="Close" MinWidth="96" IsCancel="True" Click="Close_Click" />
+                <Button DockPanel.Dock="Right" Content="Close" MinWidth="96" IsCancel="True" />
                 <Grid Margin="16,0" VerticalAlignment="Center">
                     <!-- A just-happened message wins; otherwise show whether everything is saved -->
                     <TextBlock DataContext="{Binding Notice}" Text="{Binding Message}" Foreground="{StaticResource AccentPressedBrush}"
@@ -192,6 +192,43 @@
                         </DockPanel>
                         <TextBox x:Name="NotesBox" Text="{Binding Lead.Notes, UpdateSourceTrigger=PropertyChanged}"
                                  Style="{StaticResource MultiLineBox}" MinHeight="150" MaxHeight="400" />
+
+                        <TextBlock Text="Emails" Style="{StaticResource CardTitle}" Margin="0,22,0,6" />
+                        <TextBlock Text="No emails sent from Lead Manager yet." Style="{StaticResource Muted}"
+                                   Visibility="{Binding HasEmailHistory, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}" />
+                        <ItemsControl ItemsSource="{Binding EmailHistory}" Focusable="False">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border BorderBrush="{StaticResource HairlineBrush}" BorderThickness="0,0,0,1" Padding="0,8" Background="Transparent"
+                                            ToolTip="{Binding Body}" ToolTipService.ShowDuration="60000">
+                                        <DockPanel>
+                                            <Border DockPanel.Dock="Right" CornerRadius="10" Padding="9,2,9,3" Margin="12,0,0,0" VerticalAlignment="Center"
+                                                    ToolTip="{Binding Error}">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="#DDF0DD" />
+                                                        <Setter Property="TextElement.Foreground" Value="#006300" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding WasSent}" Value="False">
+                                                                <Setter Property="Background" Value="#FBE5E5" />
+                                                                <Setter Property="TextElement.Foreground" Value="#A12B2B" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <TextBlock Text="{Binding Status}" FontSize="12" />
+                                            </Border>
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Subject}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Style="{StaticResource Muted}" FontSize="12">
+                                                    <Run Text="{Binding SentAt, Mode=OneWay, StringFormat='MMM d, yyyy · h:mm tt'}" /><Run Text="  ·  " /><Run Text="{Binding ToAddress, Mode=OneWay}" />
+                                                </TextBlock>
+                                            </StackPanel>
+                                        </DockPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                     </StackPanel>
                 </ScrollViewer>
             </Border>

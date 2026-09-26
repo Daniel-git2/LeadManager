@@ -12,13 +12,15 @@ namespace LeadManager.ViewModels;
 public sealed partial class MainViewModel : ObservableObject
 {
     private readonly IDialogService _dialogs;
+    private readonly Outreach _outreach;
 
-    public MainViewModel(LeadStore store, IDialogService dialogs)
+    public MainViewModel(LeadStore store, IDialogService dialogs, Outreach outreach)
     {
         Store = store;
         _dialogs = dialogs;
-        LeadList = new LeadListViewModel(store, dialogs, Notice);
-        Dashboard = new DashboardViewModel(store, dialogs, ShowLeads);
+        _outreach = outreach;
+        LeadList = new LeadListViewModel(store, dialogs, Notice, outreach);
+        Dashboard = new DashboardViewModel(store, dialogs, outreach, ShowLeads);
         _currentPage = Dashboard;
 
         store.PropertyChanged += OnStorePropertyChanged;
@@ -126,6 +128,15 @@ public sealed partial class MainViewModel : ObservableObject
 
     [RelayCommand]
     private void ShowDatabaseFile() => LeadActions.ShowInExplorer(Store.DatabasePath);
+
+    [RelayCommand]
+    private void OpenEmailSettings()
+    {
+        if (_outreach.OpenSettings())
+        {
+            Notice.Show("Email settings saved.");
+        }
+    }
 
     private void Export(List<Models.Lead> leads, string suggestedName)
     {
